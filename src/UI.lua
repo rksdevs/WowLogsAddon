@@ -283,17 +283,18 @@ local function getColumns()
       { key = "rank",      label = "#",         x = 8,   w = 26,  align = "LEFT"  },
       { key = "classIcon", label = "",            x = 40,  w = 20,  align = "LEFT"  },
       { key = "specIcon",  label = "",            x = 62,  w = 20,  align = "LEFT"  },
-      { key = "player",   label = "Player",      x = 86,  w = 140, align = "LEFT"  },
-      { key = "role",     label = "Role",        x = 232, w = 46,  align = "LEFT"  },
-      { key = "ladder",   label = "Ladder",      x = 282, w = 70,  align = "LEFT"  },
-      { key = "diff",     label = "Difficulty",  x = 354, w = 64,  align = "LEFT"  },
-      { key = "pct",      label = "%Best",       x = 424, w = 46,  align = "RIGHT" },
-      { key = "trend",    label = "Trend",       x = 474, w = 46,  align = "RIGHT" },
-      { key = "latestDate", label = "Latest",   x = 524, w = 70,  align = "RIGHT" },
+      { key = "player",    label = "Player",      x = 86,  w = 140, align = "LEFT"  },
+      { key = "role",      label = "Role",        x = 232, w = 46,  align = "LEFT"  },
+      { key = "ladder",    label = "Ladder",      x = 282, w = 60,  align = "LEFT"  },
+      { key = "diff",      label = "Difficulty",  x = 345, w = 46,  align = "LEFT"  },
+      { key = "amount",    label = "Amount",      x = 395, w = 50,  align = "RIGHT" },
+      { key = "pct",       label = "%Best",       x = 450, w = 40,  align = "RIGHT" },
+      { key = "trend",     label = "Trend",       x = 495, w = 46,  align = "RIGHT" },
+      { key = "latestDate",label = "Latest",      x = 545, w = 70,  align = "RIGHT" },
     }
     if not isPremium then
-      cols[9].label  = "Trend "
-      cols[10].label = "Latest "
+      cols[10].label  = "Trend "
+      cols[11].label  = "Latest "
     end
     return cols
   end
@@ -430,19 +431,20 @@ local function refreshRows()
       if filters.view == "PERFORMANCE" then
         row.playerCell:SetWidth(140)
         row.diffCell:ClearAllPoints()
-        row.diffCell:SetPoint("LEFT", row, "LEFT", 354, 0)
-        row.diffCell:SetWidth(64)
+        row.diffCell:SetPoint("LEFT", row, "LEFT", 345, 0)
+        row.diffCell:SetWidth(46)
 
         row.roleCell:Show()
         row.ladderCell:Show()
         row.pctCell:Show()
+        row.amountCell:Show()
         row.trendCell:Show()
         row.latestDateCell:Show()
         row.pointsCell:Hide()
-        row.amountCell:Hide()
-
+        
         setCellText(row.roleCell, WowLogsDataStore.GetRole(entry) or "-", THEME.muted, "LEFT")
         setCellText(row.ladderCell, WowLogsDataStore.GetLadder(entry) or "-", THEME.muted, "LEFT")
+        setCellText(row.amountCell, string.format("%.1f", WowLogsDataStore.GetAmount(entry) or 0), THEME.text, "RIGHT")
         setCellText(row.pctCell, string.format("%.1f", WowLogsDataStore.GetPercentile(entry) or 0), THEME.accent, "RIGHT")
 
         -- Trend column: show DNA for non-premium, colored +/- for premium
@@ -935,11 +937,11 @@ local function ensureFrame()
     row.pointsCell  = makeCell(row, 494, 108, "RIGHT")
 
     row.roleCell       = makeCell(row, 232, 46, "LEFT")
-    row.ladderCell     = makeCell(row, 282, 70, "LEFT")
-    row.pctCell        = makeCell(row, 424, 46, "RIGHT")
-    row.trendCell      = makeCell(row, 474, 46, "RIGHT")
-    row.latestDateCell = makeCell(row, 524, 70, "RIGHT")
-    row.amountCell     = makeCell(row, 524, 70, "RIGHT")
+    row.ladderCell     = makeCell(row, 282, 60, "LEFT")
+    row.amountCell     = makeCell(row, 395, 50, "RIGHT")
+    row.pctCell        = makeCell(row, 450, 40, "RIGHT")
+    row.trendCell      = makeCell(row, 495, 46, "RIGHT")
+    row.latestDateCell = makeCell(row, 545, 70, "RIGHT")
 
     rows[i] = row
   end
