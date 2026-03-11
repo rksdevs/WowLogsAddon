@@ -43,48 +43,34 @@ function WowLogsTooltip.ShowForPlayer(r, playerName)
     return
   end
 
-  local points = r.points or 0
-  local rank = r.overallRank or "-"
-  
-  -- Main Phase Stats
-  GameTooltip:AddDoubleLine("Phase Points:", string.format("%.2f", points), 0.9, 0.9, 0.9, 0, 1, 1)
-  GameTooltip:AddDoubleLine("Overall Rank:", "#" .. rank, 0.9, 0.9, 0.9, 1, 0.82, 0)
 
-  -- Spec Breakdown per Difficulty (Aggregated)
   if r.rankings and #r.rankings > 0 then
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Points by Spec:", 0.6, 0.6, 0.6)
-    
-    -- Sort rankings by difficulty order
+    -- Sort by points desc
     local sortedRanks = {}
     for _, rankObj in ipairs(r.rankings) do
       table.insert(sortedRanks, rankObj)
     end
-    
     table.sort(sortedRanks, function(a, b)
-      local oa = diffOrder[a.difficulty] or 99
-      local ob = diffOrder[b.difficulty] or 99
-      if oa ~= ob then return oa < ob end
       return (a.points or 0) > (b.points or 0)
     end)
-    
+
     local c = classColors[r.playerClass] or {0.8, 0.8, 0.8}
-    
+
     for _, ranking in ipairs(sortedRanks) do
-      local dns = diffNames[ranking.difficulty] or ranking.difficulty
+      local dns  = diffNames[ranking.difficulty] or ranking.difficulty
       local spec = ranking.spec or "Unknown"
-      local rnk = ranking.rank or "-"
-      local pts = ranking.points or 0
-      
-      -- Format: 25Hc (Shadow) | 900.0 [#1]
-      local left = string.format("%s (|cff%02x%02x%02x%s|r)", 
-        dns, 
-        math.floor(c[1]*255), math.floor(c[2]*255), math.floor(c[3]*255), 
-        spec
+      local rnk  = ranking.rank or "-"
+      local pts  = ranking.points or 0
+
+      local left = string.format("|cffFFD700#%s|r |cff%02x%02x%02x%s|r %s",
+        rnk,
+        math.floor(c[1]*255), math.floor(c[2]*255), math.floor(c[3]*255),
+        spec,
+        dns
       )
-      local right = string.format("%.1f [#%s]", pts, rnk)
-      
-      GameTooltip:AddDoubleLine(left, right, 1, 1, 1, 1, 0.82, 0)
+      local right = string.format("%.1f", pts)
+
+      GameTooltip:AddDoubleLine(left, right, 1, 1, 1, 0, 1, 1)
     end
   end
 

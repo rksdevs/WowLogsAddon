@@ -6,17 +6,54 @@ local headerCells = {}
 local visibleRows = 14
 local rowHeight = 24
 
+local savedFilters = {
+  POINTS = {
+    raidId = "ALL", bossId = "ALL", bossVariant = "ALL",
+    difficulty = "ALL", className = "ALL", spec = "ALL",
+    role = "ALL", ladder = "ALL",
+  },
+  PERFORMANCE = {
+    raidId = "ALL", bossId = "ALL", bossVariant = "ALL",
+    difficulty = "ALL", className = "ALL", spec = "ALL",
+    role = "ALL", ladder = "ALL",
+  },
+}
+
 local filters = {
   view = "POINTS", -- POINTS | PERFORMANCE
   raidId = "ALL",
   bossId = "ALL",
-  bossVariant = "ALL", -- bossId|difficulty
+  bossVariant = "ALL",
   difficulty = "ALL",
   className = "ALL",
   spec = "ALL",
   role = "ALL",
   ladder = "ALL",
 }
+
+local function saveCurrentFilters()
+  local sv = savedFilters[filters.view]
+  sv.raidId = filters.raidId
+  sv.bossId = filters.bossId
+  sv.bossVariant = filters.bossVariant
+  sv.difficulty = filters.difficulty
+  sv.className = filters.className
+  sv.spec = filters.spec
+  sv.role = filters.role
+  sv.ladder = filters.ladder
+end
+
+local function restoreFilters(view)
+  local sv = savedFilters[view]
+  filters.raidId = sv.raidId
+  filters.bossId = sv.bossId
+  filters.bossVariant = sv.bossVariant
+  filters.difficulty = sv.difficulty
+  filters.className = sv.className
+  filters.spec = sv.spec
+  filters.role = sv.role
+  filters.ladder = sv.ladder
+end
 
 local THEME = {
   bg        = { 0.09, 0.10, 0.12, 0.95 },
@@ -251,8 +288,7 @@ local function getColumns()
       { key = "ladder",   label = "Ladder",      x = 282, w = 70,  align = "LEFT"  },
       { key = "diff",     label = "Difficulty",  x = 354, w = 64,  align = "LEFT"  },
       { key = "pct",      label = "%Best",       x = 424, w = 46,  align = "RIGHT" },
-      { key = "trend",    label = isPremium and "Trend" or "Trend",
-                           x = 474, w = 46,  align = "RIGHT" },
+      { key = "trend",    label = "Trend",       x = 474, w = 46,  align = "RIGHT" },
       { key = "latestDate", label = "Latest",   x = 524, w = 70,  align = "RIGHT" },
     }
     if not isPremium then
@@ -745,12 +781,9 @@ local function ensureFrame()
   frame.pointsTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -56)
   frame.pointsTab:SetText("Points")
   frame.pointsTab:SetScript("OnClick", function()
+    saveCurrentFilters()     
     filters.view = "POINTS"
-    filters.bossId = "ALL"
-    filters.bossVariant = "ALL"
-    filters.difficulty = "ALL"
-    filters.role = "ALL"
-    filters.ladder = "ALL"
+    restoreFilters("POINTS") 
     WowLogsUI.Refresh()
   end)
 
@@ -759,7 +792,9 @@ local function ensureFrame()
   frame.perfTab:SetPoint("LEFT", frame.pointsTab, "RIGHT", 6, 0)
   frame.perfTab:SetText("Performance")
   frame.perfTab:SetScript("OnClick", function()
+    saveCurrentFilters()          
     filters.view = "PERFORMANCE"
+    restoreFilters("PERFORMANCE") 
     if filters.bossId == "ALL" then
       local variants = getBossVariants()
       if #variants > 0 then
@@ -806,12 +841,12 @@ local function ensureFrame()
   filtersTitle:SetPoint("TOPLEFT", filterPanel, "TOPLEFT", 10, -10)
   filtersTitle:SetText("Filters")
 
-  frame.raidDropdown = createDropdown("WowLogsRaidDropdown", filterPanel, 12, -44, 170, "Raid")
-  frame.diffDropdown = createDropdown("WowLogsDiffDropdown", filterPanel, 12, -94, 170, "Difficulty")
-  frame.bossDropdown = createDropdown("WowLogsBossDropdown", filterPanel, 12, -144, 170, "Boss")
-  frame.classDropdown = createDropdown("WowLogsClassDropdown", filterPanel, 12, -194, 170, "Class")
-  frame.specDropdown = createDropdown("WowLogsSpecDropdown", filterPanel, 12, -244, 170, "Spec")
-  frame.roleDropdown = createDropdown("WowLogsRoleDropdown", filterPanel, 12, -294, 170, "Role")
+  frame.raidDropdown   = createDropdown("WowLogsRaidDropdown",   filterPanel, 12, -44,  170, "Raid")
+  frame.diffDropdown   = createDropdown("WowLogsDiffDropdown",   filterPanel, 12, -94,  170, "Difficulty")
+  frame.bossDropdown   = createDropdown("WowLogsBossDropdown",   filterPanel, 12, -144, 170, "Boss")
+  frame.classDropdown  = createDropdown("WowLogsClassDropdown",  filterPanel, 12, -194, 170, "Class")
+  frame.specDropdown   = createDropdown("WowLogsSpecDropdown",   filterPanel, 12, -244, 170, "Spec")
+  frame.roleDropdown   = createDropdown("WowLogsRoleDropdown",   filterPanel, 12, -294, 170, "Role")
   frame.ladderDropdown = createDropdown("WowLogsLadderDropdown", filterPanel, 12, -344, 170, "Ladder")
 
   local resetBtn = CreateFrame("Button", nil, filterPanel, "UIPanelButtonTemplate")
