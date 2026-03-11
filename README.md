@@ -1,4 +1,4 @@
-# WoW Logs Addon (v1.0.0)
+# WoW Logs Addon (v1.0.2)
 
 A powerful in-game utility for players on the **wow-logs.co.in** platform. This addon provides real-time ranking data, performance trends, and tooltip enhancements for World of Warcraft 3.3.5a.
 
