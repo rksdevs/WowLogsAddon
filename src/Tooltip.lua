@@ -44,16 +44,21 @@ function WowLogsTooltip.ShowForPlayer(r, playerName)
   end
 
   local points = r.points or 0
+  local rank = r.overallRank or "-"
+  
+  -- Main Phase Stats
   GameTooltip:AddDoubleLine("Phase Points:", string.format("%.2f", points), 0.9, 0.9, 0.9, 0, 1, 1)
+  GameTooltip:AddDoubleLine("Overall Rank:", "#" .. rank, 0.9, 0.9, 0.9, 1, 0.82, 0)
 
-  -- Spec Breakdown per Difficulty
+  -- Spec Breakdown per Difficulty (Aggregated)
   if r.rankings and #r.rankings > 0 then
     GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("Points by Spec:", 0.6, 0.6, 0.6)
     
-    -- Filter and Sort rankings by difficulty order
+    -- Sort rankings by difficulty order
     local sortedRanks = {}
-    for _, rank in ipairs(r.rankings) do
-      table.insert(sortedRanks, rank)
+    for _, rankObj in ipairs(r.rankings) do
+      table.insert(sortedRanks, rankObj)
     end
     
     table.sort(sortedRanks, function(a, b)
@@ -68,16 +73,16 @@ function WowLogsTooltip.ShowForPlayer(r, playerName)
     for _, ranking in ipairs(sortedRanks) do
       local dns = diffNames[ranking.difficulty] or ranking.difficulty
       local spec = ranking.spec or "Unknown"
-      local rank = ranking.rank or "-"
+      local rnk = ranking.rank or "-"
       local pts = ranking.points or 0
       
-      -- Format: Difficulty (Spec) | Points [#Rank]
+      -- Format: 25Hc (Shadow) | 900.0 [#1]
       local left = string.format("%s (|cff%02x%02x%02x%s|r)", 
         dns, 
         math.floor(c[1]*255), math.floor(c[2]*255), math.floor(c[3]*255), 
         spec
       )
-      local right = string.format("%.1f [#%s]", pts, rank)
+      local right = string.format("%.1f [#%s]", pts, rnk)
       
       GameTooltip:AddDoubleLine(left, right, 1, 1, 1, 1, 0.82, 0)
     end

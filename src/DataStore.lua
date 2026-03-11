@@ -191,10 +191,65 @@ function WowLogsDataStore.QueryBosses(isPerf, fRaidId, fDifficultyText)
   return out
 end
 
+local runtimePlayerCache = nil
+
 function WowLogsDataStore.GetPlayerRanking(name, realm)
   ensureDb()
-  local key = WowLogsNormalizeKey(name, realm)
-  return WowLogsAddonDB.rankings.players[key]
+  local lookupKey = WowLogsNormalizeKey(name, realm)
+  
+  -- Build/Refresh cache if missing or data updated
+  local db = WowLogsDataStore.GetDb()
+  local lastUpdate = db.rankings and db.rankings.updatedAt or 0
+  
+  if not runtimePlayerCache or runtimePlayerCache._updatedAt ~= lastUpdate then
+    runtimePlayerCache = { _updatedAt = lastUpdate }
+    local dict = db.rankings and db.rankings.dict or {}
+    
+    local function getP(playerName, pClassId)
+       local k = WowLogsNormalizeKey(playerName, realm)
+       if not runtimePlayerCache[k] then
+         runtimePlayerCache[k] = {
+           playerName = playerName,
+           playerClass = dict[tonumber(pClassId)] or pClassId,
+           points = 0,
+           overallRank = nil,
+           rankings = {}
+         }
+       end
+       return runtimePlayerCache[k]
+    end
+
+    -- 1. Scan Points Rows (rows) for overall points and ranks
+    local rows = db.rankings and db.rankings.rows or {}
+    for i=1, #rows do
+      local rowStr = rows[i]
+      if type(rowStr) == "string" then
+        -- key,playerName,classID,specID,raidId,raidNameID,bossId,bossNameID,difficultyID,points,percentile,categoryRank,isFollowed
+        local k, n, c, s, ri, rn, bi, bn, d, p, pc, cr, f = strsplit(",", rowStr)
+        local pObj = getP(n, c)
+        local pts = tonumber(p) or 0
+        
+        -- Update total points and overall rank (taking the best rank/points found)
+        if pts > pObj.points then
+            pObj.points = pts
+            pObj.overallRank = cr
+        end
+
+        -- Aggregated ranking (one per spec/difficulty)
+        table.insert(pObj.rankings, {
+          difficulty = dict[tonumber(d)] or d,
+          spec = dict[tonumber(s)] or s,
+          rank = cr,
+          points = pts
+        })
+      end
+    end
+
+    -- Note: Performance rows are skipped for tooltips to keep it clean, 
+    -- showing only the summarized Phase Points per Spec/Difficulty.
+  end
+
+  return runtimePlayerCache[lookupKey]
 end
 
 function WowLogsDataStore.GetUpdatedAt()
