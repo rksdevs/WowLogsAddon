@@ -1,0 +1,14 @@
+## Interface: 30300
+## Title: WoW Logs Addon
+## Notes: In-game ranking panel + tooltip rank display for WoW Logs
+## Author: Rksdevs (Inno)
+## Version: 1.0.0
+## SavedVariables: WowLogsAddonDB
+
+src\Config.lua
+src\DataStore.lua
+src\Bridge.lua
+src\Tooltip.lua
+src\UI.lua
+src\MinimapButton.lua
+src\Core.lua
