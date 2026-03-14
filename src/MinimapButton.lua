@@ -1,4 +1,4 @@
-WowLogsMinimap = {}
+﻿WowLogsMinimap = {}
 
 local btn
 local iconPath = "Interface\\Icons\\INV_Misc_EngGizmos_03"
@@ -10,8 +10,6 @@ local function ensureMeta()
     angle = 210,
     hidden = false,
   }
-  -- Force-visible default for current rollout to avoid hidden-state confusion.
-  WowLogsAddonDB.meta.minimap.hidden = false
   return WowLogsAddonDB.meta.minimap
 end
 
@@ -36,7 +34,6 @@ end
 
 function WowLogsMinimap.Init()
   local meta = ensureMeta()
-  -- Default to visible so first-time users always see the launcher.
   if meta.hidden == nil then
     meta.hidden = false
   end
@@ -100,5 +97,9 @@ function WowLogsMinimap.Init()
   end)
 
   updatePosition()
-  btn:Show()
+  if meta.hidden then
+    btn:Hide()
+  else
+    btn:Show()
+  end
 end

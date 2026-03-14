@@ -1,9 +1,15 @@
-local function trim(s)
+﻿local function trim(s)
   return (s:gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
 local function handleCommand(msg)
   msg = string.lower(trim(msg or ""))
+
+  if msg == "showicon" then
+    msg = "minimap show"
+  elseif msg == "hideicon" then
+    msg = "minimap hide"
+  end
 
   if msg == "refresh" then
     WowLogsBridge.RequestRefresh()
@@ -21,7 +27,7 @@ local function handleCommand(msg)
     WowLogsAddonDB.meta.minimap = WowLogsAddonDB.meta.minimap or { angle = 210, hidden = false }
     WowLogsAddonDB.meta.minimap.hidden = true
     if WowLogsMinimapButton then WowLogsMinimapButton:Hide() end
-    print("[WoW Logs] Minimap icon hidden. Use /wla minimap show")
+    print("[WoW Logs] Minimap icon hidden. Use /wla showicon")
     return
   end
 
@@ -31,7 +37,7 @@ local function handleCommand(msg)
     WowLogsAddonDB.meta.minimap = WowLogsAddonDB.meta.minimap or { angle = 210, hidden = false }
     WowLogsAddonDB.meta.minimap.hidden = false
     if WowLogsMinimapButton then WowLogsMinimapButton:Show() end
-    print("[WoW Logs] Minimap icon shown")
+    print("[WoW Logs] Minimap icon shown. Use /wla hideicon")
     return
   end
 
