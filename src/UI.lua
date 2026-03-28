@@ -816,8 +816,20 @@ local function ensureFrame()
     ReloadUI()
   end)
 
+  frame.guildExportBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+  frame.guildExportBtn:SetSize(96, 22)
+  frame.guildExportBtn:SetPoint("LEFT", frame.reloadBtn, "RIGHT", 8, 0)
+  frame.guildExportBtn:SetText("Export Guild")
+  frame.guildExportBtn:SetScript("OnClick", function()
+    if WowLogsGuildExport and WowLogsGuildExport.ShowDialog then
+      WowLogsGuildExport.ShowDialog()
+    else
+      print("|cffff8800[WoW Logs]|r Guild export module not loaded.")
+    end
+  end)
+
   frame.modeText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  frame.modeText:SetPoint("LEFT", frame.reloadBtn, "RIGHT", 15, 0)
+  frame.modeText:SetPoint("LEFT", frame.guildExportBtn, "RIGHT", 12, 0)
   frame.modeText:SetText("Viewing: Points Leaderboard")
   frame.modeText:SetTextColor(THEME.muted[1], THEME.muted[2], THEME.muted[3], THEME.muted[4])
 

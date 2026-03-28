@@ -1,4 +1,4 @@
-﻿local function trim(s)
+local function trim(s)
   return (s:gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
@@ -18,6 +18,15 @@ local function handleCommand(msg)
 
   if msg == "status" then
     print("[WoW Logs] " .. WowLogsBridge.GetStatusText())
+    return
+  end
+
+  if msg == "exportguild" or msg == "guildexport" then
+    if WowLogsGuildExport and WowLogsGuildExport.ShowDialog then
+      WowLogsGuildExport.ShowDialog()
+    else
+      print("[WoW Logs] Guild export module not loaded.")
+    end
     return
   end
 
