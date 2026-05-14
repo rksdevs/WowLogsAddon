@@ -24,7 +24,8 @@ local diffNames = {
   ["TWENTY_FIVE_HC"] = "25Hc",
   ["TEN_HC"] = "10Hc",
   ["TWENTY_FIVE_NM"] = "25Nm",
-  ["TEN_NM"] = "10Nm"
+  ["TEN_NM"] = "10Nm",
+  ["V2"] = "V2",
 }
 
 function WowLogsTooltip.ShowForPlayer(r, playerName)

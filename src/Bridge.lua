@@ -1,12 +1,12 @@
 ﻿WowLogsBridge = {}
 
 function WowLogsBridge.RequestRefresh()
-  print("[WoW Logs] Open uploader and click 'Update Rankings', then type /reload.")
+  print("[WoW Logs] Use the Native Uploader (Browse rankings → Send to addon), or Update Rankings for a full export. After syncing, /reload loads RankingsPayload.lua from disk.")
 end
 
 function WowLogsBridge.GetStatusText()
   local updatedAt = WowLogsDataStore.GetUpdatedAt()
-  local rankings = WowLogsAddonDB and WowLogsAddonDB.rankings
+  local rankings = WowLogsDataStore.GetRankings()
   local season = (rankings and rankings.season) or "?"
   local server = (rankings and rankings.serverName) or ""
 

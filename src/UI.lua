@@ -6,53 +6,13 @@ local headerCells = {}
 local visibleRows = 14
 local rowHeight = 24
 
-local savedFilters = {
-  POINTS = {
-    raidId = "ALL", bossId = "ALL", bossVariant = "ALL",
-    difficulty = "ALL", className = "ALL", spec = "ALL",
-    role = "ALL", ladder = "ALL",
-  },
-  PERFORMANCE = {
-    raidId = "ALL", bossId = "ALL", bossVariant = "ALL",
-    difficulty = "ALL", className = "ALL", spec = "ALL",
-    role = "ALL", ladder = "ALL",
-  },
-}
-
 local filters = {
   view = "POINTS", -- POINTS | PERFORMANCE
-  raidId = "ALL",
-  bossId = "ALL",
-  bossVariant = "ALL",
-  difficulty = "ALL",
-  className = "ALL",
-  spec = "ALL",
-  role = "ALL",
-  ladder = "ALL",
 }
 
-local function saveCurrentFilters()
-  local sv = savedFilters[filters.view]
-  sv.raidId = filters.raidId
-  sv.bossId = filters.bossId
-  sv.bossVariant = filters.bossVariant
-  sv.difficulty = filters.difficulty
-  sv.className = filters.className
-  sv.spec = filters.spec
-  sv.role = filters.role
-  sv.ladder = filters.ladder
-end
-
-local function restoreFilters(view)
-  local sv = savedFilters[view]
-  filters.raidId = sv.raidId
-  filters.bossId = sv.bossId
-  filters.bossVariant = sv.bossVariant
-  filters.difficulty = sv.difficulty
-  filters.className = sv.className
-  filters.spec = sv.spec
-  filters.role = sv.role
-  filters.ladder = sv.ladder
+local function strtrim(s)
+  if not s then return "" end
+  return (tostring(s):gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
 local THEME = {
@@ -121,22 +81,6 @@ local function getDB()
   return WowLogsDataStore.GetDb()
 end
 
-local function getActiveRows()
-  local db = getDB()
-  if filters.view == "PERFORMANCE" then
-    return (db.rankings and db.rankings.performanceRows) or {}
-  end
-  return (db.rankings and db.rankings.rows) or {}
-end
-
-local function getActiveFilterMeta()
-  local db = getDB()
-  if filters.view == "PERFORMANCE" then
-    return (db.rankings and db.rankings.performanceFilters) or {}
-  end
-  return (db.rankings and db.rankings.filters) or {}
-end
-
 local function formatDifficulty(value)
   local map = {
     TEN_NM = "10N",
@@ -146,25 +90,6 @@ local function formatDifficulty(value)
     OTHERS = "Other",
   }
   return map[value] or value or "-"
-end
-
-local function getDifficultyOrder(value)
-  local order = {
-    TEN_NM = 1,
-    TEN_HC = 2,
-    TWENTY_FIVE_NM = 3,
-    TWENTY_FIVE_HC = 4,
-    OTHERS = 99,
-  }
-  return order[value] or 999
-end
-
-local function getDiffIconTag(value)
-  local isHeroic = value == "TEN_HC" or value == "TWENTY_FIVE_HC"
-  if isHeroic then
-    return "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:12|t"
-  end
-  return "|TInterface\\Icons\\INV_Shield_06:12|t"
 end
 
 local function setClassIcon(tex, className)
@@ -213,70 +138,9 @@ local function getSpecIconTag(className, spec)
   return string.format("|T%s:14:14|t", iconPath)
 end
 
-local function findNameById(list, id)
-  for _, item in ipairs(list or {}) do
-    if tostring(item.id) == tostring(id) then
-      return item.name
-    end
-  end
-  return nil
-end
-
-local function findValue(list, value)
-  for _, item in ipairs(list or {}) do
-    if tostring(item) == tostring(value) then
-      return item
-    end
-  end
-  return nil
-end
-
-local function getBossVariants()
-  local out = WowLogsDataStore.QueryBosses(filters.view == "PERFORMANCE", filters.raidId, filters.difficulty)
-
-  table.sort(out, function(a, b)
-    if a.bossName == b.bossName then
-      return getDifficultyOrder(a.difficulty) < getDifficultyOrder(b.difficulty)
-    end
-    return a.bossName < b.bossName
-  end)
-
-  return out
-end
-
-local function getBossDisplayText()
-  if filters.bossId == "ALL" then
-    return "All"
-  end
-
-  local variants = getBossVariants()
-  local currentKey = tostring(filters.bossId) .. "|" .. tostring(filters.difficulty)
-  for _, v in ipairs(variants) do
-    if v.key == currentKey then
-      return string.format("%s %s %s", getDiffIconTag(v.difficulty), formatDifficulty(v.difficulty), v.bossName)
-    end
-  end
-
-  return "Boss"
-end
-
-local function createDropdown(name, parent, x, y, width, label)
-  local l = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  l:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y + 16)
-  l:SetText(label)
-  l:SetTextColor(THEME.muted[1], THEME.muted[2], THEME.muted[3], THEME.muted[4])
-
-  local dd = CreateFrame("Frame", name, parent, "UIDropDownMenuTemplate")
-  dd:SetPoint("TOPLEFT", parent, "TOPLEFT", x - 12, y)
-  UIDropDownMenu_SetWidth(dd, width)
-  UIDropDownMenu_JustifyText(dd, "LEFT")
-  dd.label = l
-  return dd
-end
-
 local function getColumns()
-  local db = getDB()
-  local isPremium = db.rankings and db.rankings.isPremium
+  local rk = WowLogsDataStore.GetRankings()
+  local isPremium = rk and rk.isPremium
 
   if filters.view == "PERFORMANCE" then
     local cols = {
@@ -299,6 +163,20 @@ local function getColumns()
     return cols
   end
 
+  if rk and rk.pointsV2 then
+    return {
+      { key = "rank",      label = "#",         x = 8,   w = 26,  align = "LEFT"  },
+      { key = "classIcon", label = "",            x = 40,  w = 20,  align = "LEFT"  },
+      { key = "specIcon",  label = "",            x = 62,  w = 20,  align = "LEFT"  },
+      { key = "player",   label = "Player",      x = 86,  w = 168, align = "LEFT"  },
+      { key = "role",     label = "Role",        x = 258, w = 40,  align = "LEFT"  },
+      { key = "points",   label = "Points",      x = 302, w = 72,  align = "RIGHT" },
+      { key = "spct",     label = "Spec %",      x = 378, w = 52,  align = "RIGHT" },
+      { key = "cpct",     label = "Class %",     x = 434, w = 52,  align = "RIGHT" },
+      { key = "rpct",     label = "Role %",      x = 490, w = 52,  align = "RIGHT" },
+    }
+  end
+
   return {
     { key = "rank",      label = "#",         x = 8,   w = 26,  align = "LEFT"  },
     { key = "classIcon", label = "",            x = 40,  w = 20,  align = "LEFT"  },
@@ -310,7 +188,11 @@ local function getColumns()
 end
 
 local function getFilteredRows()
-  local out = WowLogsDataStore.Query(filters.view == "PERFORMANCE", filters)
+  local q = ""
+  if frame and frame.searchBox then
+    q = strtrim(frame.searchBox:GetText() or "")
+  end
+  local out = WowLogsDataStore.QueryWithSearch(filters.view == "PERFORMANCE", q)
 
   table.sort(out, function(a, b)
     if filters.view == "PERFORMANCE" then
@@ -321,6 +203,15 @@ local function getFilteredRows()
       end
       return av > bv
     else
+      local rk = WowLogsDataStore.GetRankings()
+      if rk and rk.pointsV2 then
+        local ar = tonumber(WowLogsDataStore.GetCategoryRank(a)) or 999999
+        local br = tonumber(WowLogsDataStore.GetCategoryRank(b)) or 999999
+        if ar == br then
+          return (WowLogsDataStore.GetPoints(a) or 0) > (WowLogsDataStore.GetPoints(b) or 0)
+        end
+        return ar < br
+      end
       local av = WowLogsDataStore.GetPoints(a) or 0
       local bv = WowLogsDataStore.GetPoints(b) or 0
       return av > bv
@@ -331,21 +222,42 @@ local function getFilteredRows()
 end
 
 local function initViewTabs()
+  frame.pointsTab:SetText("Points")
+  frame.perfTab:SetText("Performance")
   if filters.view == "POINTS" then
-    frame.pointsTab:SetText("Points (Active)")
-    frame.perfTab:SetText("Performance")
     frame.pointsTab:Disable()
     frame.perfTab:Enable()
-    if frame.modeText then
-      frame.modeText:SetText("Viewing: Points Leaderboard")
-    end
   else
-    frame.pointsTab:SetText("Points")
-    frame.perfTab:SetText("Performance (Active)")
     frame.pointsTab:Enable()
     frame.perfTab:Disable()
-    if frame.modeText then
-      frame.modeText:SetText("Viewing: Performance Leaderboard")
+  end
+  if frame.modeText then
+    frame.modeText:SetText("Use the Native Uploader to refresh data.")
+  end
+  if frame.leaderboardHeading then
+    if filters.view == "PERFORMANCE" then
+      frame.leaderboardHeading:SetText("Performance leaderboard")
+    else
+      local rk = WowLogsDataStore.GetRankings()
+      if rk and rk.pointsV2 then
+        frame.leaderboardHeading:SetText("Points leaderboard (V2)")
+      else
+        frame.leaderboardHeading:SetText("Points leaderboard")
+      end
+    end
+  end
+  if frame.perfSliceSummary then
+    local rk = WowLogsDataStore.GetRankings()
+    local sumPerf = (rk and rk.performanceSliceSummary) or ""
+    local sumPts = (rk and rk.pointsSliceSummary) or ""
+    if filters.view == "PERFORMANCE" and sumPerf ~= "" then
+      frame.perfSliceSummary:SetText(sumPerf)
+      frame.perfSliceSummary:Show()
+    elseif filters.view == "POINTS" and sumPts ~= "" then
+      frame.perfSliceSummary:SetText(sumPts)
+      frame.perfSliceSummary:Show()
+    else
+      frame.perfSliceSummary:Hide()
     end
   end
 end
@@ -379,8 +291,8 @@ local function setCellText(cell, text, color, align)
 end
 
 local function refreshRows()
-  local db = getDB()
-  local isPremium = db.rankings and db.rankings.isPremium
+  local rk = WowLogsDataStore.GetRankings()
+  local isPremium = rk and rk.isPremium
   local data = getFilteredRows()
   local total = #data
 
@@ -418,7 +330,6 @@ local function refreshRows()
       row.trendCell:Hide()
       row.latestDateCell:Hide()
 
-      -- Show followed star marker in name
       local nameText = WowLogsDataStore.GetPlayerName(entry) or "-"
       if WowLogsDataStore.GetIsFollowed(entry) then
         nameText = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:10|t " .. nameText
@@ -426,9 +337,9 @@ local function refreshRows()
 
       setCellText(row.rankCell, tostring(WowLogsDataStore.GetCategoryRank(entry) or (offset + i)), THEME.text, "LEFT")
       setCellText(row.playerCell, nameText, WowLogsDataStore.GetIsFollowed(entry) and THEME.gold or THEME.text, "LEFT")
-      setCellText(row.diffCell, formatDifficulty(WowLogsDataStore.GetDifficulty(entry)), THEME.muted, "LEFT")
 
       if filters.view == "PERFORMANCE" then
+        setCellText(row.diffCell, formatDifficulty(WowLogsDataStore.GetDifficulty(entry)), THEME.muted, "LEFT")
         row.playerCell:SetWidth(140)
         row.diffCell:ClearAllPoints()
         row.diffCell:SetPoint("LEFT", row, "LEFT", 345, 0)
@@ -441,13 +352,12 @@ local function refreshRows()
         row.trendCell:Show()
         row.latestDateCell:Show()
         row.pointsCell:Hide()
-        
+
         setCellText(row.roleCell, WowLogsDataStore.GetRole(entry) or "-", THEME.muted, "LEFT")
         setCellText(row.ladderCell, WowLogsDataStore.GetLadder(entry) or "-", THEME.muted, "LEFT")
         setCellText(row.amountCell, string.format("%.1f", WowLogsDataStore.GetAmount(entry) or 0), THEME.text, "RIGHT")
         setCellText(row.pctCell, string.format("%.1f", WowLogsDataStore.GetPercentile(entry) or 0), THEME.accent, "RIGHT")
 
-        -- Trend column: show DNA for non-premium, colored +/- for premium
         if not isPremium then
           setCellText(row.trendCell, "DNA", THEME.muted, "RIGHT")
           setCellText(row.latestDateCell, "DNA", THEME.muted, "RIGHT")
@@ -455,13 +365,13 @@ local function refreshRows()
           local trendVal = WowLogsDataStore.GetTrend(entry) or 0
           local trendStr, trendColor
           if trendVal > 0 then
-            trendStr  = string.format("+%.1f", trendVal)
+            trendStr = string.format("+%.1f", trendVal)
             trendColor = THEME.green
           elseif trendVal < 0 then
-            trendStr  = string.format("%.1f", trendVal)
+            trendStr = string.format("%.1f", trendVal)
             trendColor = THEME.red
           else
-            trendStr  = "~"
+            trendStr = "~"
             trendColor = THEME.muted
           end
           setCellText(row.trendCell, trendStr, trendColor, "RIGHT")
@@ -471,256 +381,48 @@ local function refreshRows()
           setCellText(row.latestDateCell, "-", THEME.muted, "RIGHT")
         end
       else
-        row.playerCell:SetWidth(300)
-        row.diffCell:ClearAllPoints()
-        row.diffCell:SetPoint("LEFT", row, "LEFT", 392, 0)
-        row.diffCell:SetWidth(90)
+        if rk.pointsV2 then
+          row.playerCell:SetWidth(168)
+          row.diffCell:ClearAllPoints()
+          row.diffCell:SetPoint("LEFT", row, "LEFT", 258, 0)
+          row.diffCell:SetWidth(40)
+          row.pointsCell:ClearAllPoints()
+          row.pointsCell:SetPoint("LEFT", row, "LEFT", 302, 0)
+          row.pointsCell:SetWidth(72)
+          row.pctCell:Show()
+          row.amountCell:Show()
+          row.trendCell:Show()
+          row.pctCell:ClearAllPoints()
+          row.pctCell:SetPoint("LEFT", row, "LEFT", 378, 0)
+          row.pctCell:SetWidth(52)
+          row.amountCell:ClearAllPoints()
+          row.amountCell:SetPoint("LEFT", row, "LEFT", 434, 0)
+          row.amountCell:SetWidth(52)
+          row.trendCell:ClearAllPoints()
+          row.trendCell:SetPoint("LEFT", row, "LEFT", 490, 0)
+          row.trendCell:SetWidth(52)
+          setCellText(row.diffCell, WowLogsDataStore.GetRole(entry) or "-", THEME.muted, "LEFT")
+          setCellText(row.pointsCell, string.format("%.2f", WowLogsDataStore.GetPoints(entry) or 0), THEME.accent, "RIGHT")
+          local sp = WowLogsDataStore.GetV2SpecPct(entry) or 0
+          local cp = WowLogsDataStore.GetV2ClassPct(entry) or 0
+          local rp = WowLogsDataStore.GetV2RolePct(entry) or 0
+          setCellText(row.pctCell, string.format("%.1f%%", sp), THEME.accent, "RIGHT")
+          setCellText(row.amountCell, string.format("%.1f%%", cp), THEME.accent, "RIGHT")
+          setCellText(row.trendCell, string.format("%.1f%%", rp), THEME.accent, "RIGHT")
+        else
+          row.playerCell:SetWidth(300)
+          row.diffCell:ClearAllPoints()
+          row.diffCell:SetPoint("LEFT", row, "LEFT", 392, 0)
+          row.diffCell:SetWidth(90)
 
-        setCellText(row.pointsCell, string.format("%.2f", WowLogsDataStore.GetPoints(entry) or 0), THEME.accent, "RIGHT")
+          setCellText(row.diffCell, formatDifficulty(WowLogsDataStore.GetDifficulty(entry)), THEME.muted, "LEFT")
+          setCellText(row.pointsCell, string.format("%.2f", WowLogsDataStore.GetPoints(entry) or 0), THEME.accent, "RIGHT")
+        end
       end
     else
       row:Hide()
     end
   end
-
-  frame.totalText:SetText(string.format("%d rows", total))
-end
-
-local function initSimpleDropdown(dropdown, listBuilder)
-  UIDropDownMenu_Initialize(dropdown, function(self, level)
-    listBuilder()
-  end)
-end
-
-local function refreshDropdowns()
-  local meta = getActiveFilterMeta()
-
-  initSimpleDropdown(frame.raidDropdown, function()
-    local info = UIDropDownMenu_CreateInfo()
-    info.text = "All Raids"
-    info.value = "ALL"
-    info.func = function()
-      filters.raidId = "ALL"
-      filters.bossId = "ALL"
-      filters.bossVariant = "ALL"
-      filters.difficulty = "ALL"
-      WowLogsUI.Refresh()
-    end
-    UIDropDownMenu_AddButton(info)
-
-    for _, r in ipairs(meta.raids or {}) do
-      info = UIDropDownMenu_CreateInfo()
-      info.text = r.name
-      info.value = tostring(r.id)
-      info.func = function()
-        filters.raidId = tostring(r.id)
-        filters.bossId = "ALL"
-        filters.bossVariant = "ALL"
-        filters.difficulty = "ALL"
-        WowLogsUI.Refresh()
-      end
-      UIDropDownMenu_AddButton(info)
-    end
-  end)
-
-  if filters.raidId == "ALL" then
-    UIDropDownMenu_SetText(frame.raidDropdown, "All")
-  else
-    UIDropDownMenu_SetText(frame.raidDropdown, findNameById(meta.raids, filters.raidId) or "Raid")
-  end
-
-  initSimpleDropdown(frame.bossDropdown, function()
-    if filters.view ~= "PERFORMANCE" then
-      local info = UIDropDownMenu_CreateInfo()
-      info.text = "All Bosses"
-      info.value = "ALL"
-      info.func = function()
-        filters.bossId = "ALL"
-        filters.bossVariant = "ALL"
-        WowLogsUI.Refresh()
-      end
-      UIDropDownMenu_AddButton(info)
-    end
-
-    local variants = getBossVariants()
-    for _, v in ipairs(variants) do
-      info = UIDropDownMenu_CreateInfo()
-      info.text = string.format("%s %s %s", getDiffIconTag(v.difficulty), formatDifficulty(v.difficulty), v.bossName)
-      info.value = v.key
-      info.func = function()
-        filters.bossId = tostring(v.bossId)
-        filters.bossVariant = v.key
-        filters.difficulty = v.difficulty
-        WowLogsUI.Refresh()
-      end
-      UIDropDownMenu_AddButton(info)
-    end
-  end)
-  UIDropDownMenu_SetText(frame.bossDropdown, getBossDisplayText())
-
-  initSimpleDropdown(frame.diffDropdown, function()
-    local info = UIDropDownMenu_CreateInfo()
-    info.text = "All Difficulties"
-    info.value = "ALL"
-    info.func = function()
-      filters.difficulty = "ALL"
-      filters.bossVariant = "ALL"
-      refreshRows()
-      refreshDropdowns()
-    end
-    UIDropDownMenu_AddButton(info)
-
-    for _, d in ipairs(meta.difficulties or {}) do
-      info = UIDropDownMenu_CreateInfo()
-      info.text = string.format("%s %s", getDiffIconTag(d), formatDifficulty(d))
-      info.value = d
-      info.func = function()
-        filters.difficulty = d
-        filters.bossVariant = "ALL"
-        refreshRows()
-        refreshDropdowns()
-      end
-      UIDropDownMenu_AddButton(info)
-    end
-  end)
-
-  if filters.difficulty == "ALL" then
-    UIDropDownMenu_SetText(frame.diffDropdown, "All")
-  else
-    UIDropDownMenu_SetText(frame.diffDropdown, formatDifficulty(filters.difficulty))
-  end
-
-  initSimpleDropdown(frame.classDropdown, function()
-    local info = UIDropDownMenu_CreateInfo()
-    info.text = "All Classes"
-    info.value = "ALL"
-    info.func = function()
-      filters.className = "ALL"
-      filters.spec = "ALL"
-      WowLogsUI.Refresh()
-    end
-    UIDropDownMenu_AddButton(info)
-
-    for _, cls in ipairs(meta.classes or {}) do
-      info = UIDropDownMenu_CreateInfo()
-      info.text = string.format("%s %s", getClassIconTag(cls), cls)
-      info.value = cls
-      info.func = function()
-        filters.className = cls
-        filters.spec = "ALL"
-        WowLogsUI.Refresh()
-      end
-      UIDropDownMenu_AddButton(info)
-    end
-  end)
-
-  UIDropDownMenu_SetText(frame.classDropdown, filters.className == "ALL" and "All" or filters.className)
-
-  initSimpleDropdown(frame.specDropdown, function()
-    local info = UIDropDownMenu_CreateInfo()
-    info.text = "All Specs"
-    info.value = "ALL"
-    info.func = function()
-      filters.spec = "ALL"
-      refreshRows()
-      refreshDropdowns()
-    end
-    UIDropDownMenu_AddButton(info)
-
-    local list = {}
-    local specsByClass = meta.specsByClass or {}
-    if filters.className ~= "ALL" and specsByClass[filters.className] then
-      for _, s in ipairs(specsByClass[filters.className]) do
-        table.insert(list, { spec = s, className = filters.className })
-      end
-    else
-      for cls, specs in pairs(specsByClass) do
-        for _, s in ipairs(specs) do
-          table.insert(list, { spec = s, className = cls })
-        end
-      end
-      table.sort(list, function(a, b)
-        if a.spec == b.spec then
-          return a.className < b.className
-        end
-        return a.spec < b.spec
-      end)
-    end
-
-    for _, item in ipairs(list) do
-      info = UIDropDownMenu_CreateInfo()
-      local iconTag = getSpecIconTag(item.className, item.spec)
-      local label =
-        filters.className ~= "ALL"
-          and item.spec
-          or string.format("%s (%s)", item.spec, item.className)
-      info.text = string.format("%s %s", iconTag, label)
-      info.value = item.spec
-      info.func = function()
-        if filters.className == "ALL" then
-          filters.className = item.className
-        end
-        filters.spec = item.spec
-        refreshRows()
-        refreshDropdowns()
-      end
-      UIDropDownMenu_AddButton(info)
-    end
-  end)
-
-  UIDropDownMenu_SetText(frame.specDropdown, filters.spec == "ALL" and "All" or filters.spec)
-
-  initSimpleDropdown(frame.roleDropdown, function()
-    local info = UIDropDownMenu_CreateInfo()
-    info.text = "All Roles"
-    info.value = "ALL"
-    info.func = function()
-      filters.role = "ALL"
-      refreshRows()
-      refreshDropdowns()
-    end
-    UIDropDownMenu_AddButton(info)
-
-    for _, r in ipairs(meta.roles or {}) do
-      info = UIDropDownMenu_CreateInfo()
-      info.text = r
-      info.value = r
-      info.func = function()
-        filters.role = r
-        refreshRows()
-        refreshDropdowns()
-      end
-      UIDropDownMenu_AddButton(info)
-    end
-  end)
-
-  UIDropDownMenu_SetText(frame.roleDropdown, filters.role == "ALL" and "All" or filters.role)
-
-  initSimpleDropdown(frame.ladderDropdown, function()
-    local info = UIDropDownMenu_CreateInfo()
-    info.text = "All Ladders"
-    info.value = "ALL"
-    info.func = function()
-      filters.ladder = "ALL"
-      refreshRows()
-      refreshDropdowns()
-    end
-    UIDropDownMenu_AddButton(info)
-
-    for _, l in ipairs(meta.ladders or {}) do
-      info = UIDropDownMenu_CreateInfo()
-      info.text = l
-      info.value = l
-      info.func = function()
-        filters.ladder = l
-        refreshRows()
-        refreshDropdowns()
-      end
-      UIDropDownMenu_AddButton(info)
-    end
-  end)
-
-  UIDropDownMenu_SetText(frame.ladderDropdown, filters.ladder == "ALL" and "All" or filters.ladder)
 end
 
 local function makeCell(parent, x, width, align)
@@ -734,7 +436,7 @@ end
 
 local function createBasicFrame()
   local f = CreateFrame("Frame", "WowLogsRankFrame", UIParent)
-  f:SetSize(960, 620)
+  f:SetSize(720, 560)
   f:SetPoint("CENTER")
   f:SetFrameStrata("DIALOG")
   f:SetMovable(true)
@@ -768,7 +470,20 @@ local function createBasicFrame()
 end
 
 local function ensureFrame()
-  if frame then return end
+  if frame and frame.searchPlaceholder and frame.searchBox and frame.leaderboardHeading then
+    return
+  end
+  if frame then
+    frame:Hide()
+    frame:SetParent(nil)
+    frame = nil
+    for i = 1, #headerCells do
+      headerCells[i] = nil
+    end
+    for i = 1, #rows do
+      rows[i] = nil
+    end
+  end
 
   frame = createBasicFrame()
   frame:Hide()
@@ -783,9 +498,7 @@ local function ensureFrame()
   frame.pointsTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -56)
   frame.pointsTab:SetText("Points")
   frame.pointsTab:SetScript("OnClick", function()
-    saveCurrentFilters()     
     filters.view = "POINTS"
-    restoreFilters("POINTS") 
     WowLogsUI.Refresh()
   end)
 
@@ -794,17 +507,7 @@ local function ensureFrame()
   frame.perfTab:SetPoint("LEFT", frame.pointsTab, "RIGHT", 6, 0)
   frame.perfTab:SetText("Performance")
   frame.perfTab:SetScript("OnClick", function()
-    saveCurrentFilters()          
     filters.view = "PERFORMANCE"
-    restoreFilters("PERFORMANCE") 
-    if filters.bossId == "ALL" then
-      local variants = getBossVariants()
-      if #variants > 0 then
-        filters.bossId = tostring(variants[1].bossId)
-        filters.bossVariant = variants[1].key
-        filters.difficulty = variants[1].difficulty
-      end
-    end
     WowLogsUI.Refresh()
   end)
 
@@ -830,58 +533,85 @@ local function ensureFrame()
 
   frame.modeText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   frame.modeText:SetPoint("LEFT", frame.guildExportBtn, "RIGHT", 12, 0)
-  frame.modeText:SetText("Viewing: Points Leaderboard")
+  frame.modeText:SetText("Use the Native Uploader to refresh data.")
   frame.modeText:SetTextColor(THEME.muted[1], THEME.muted[2], THEME.muted[3], THEME.muted[4])
 
-  local filterPanel = CreateFrame("Frame", nil, frame)
-  filterPanel:SetSize(220, 500)
-  filterPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -88)
-  frame.filterPanel = filterPanel
+  local searchFocused = false
 
-  if filterPanel.SetBackdrop then
-    filterPanel:SetBackdrop({
-      bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+  frame.searchBox = CreateFrame("EditBox", "WowLogsRankSearchBox", frame)
+  frame.searchBox:SetSize(640, 22)
+  frame.searchBox:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -82)
+  frame.searchBox:SetAutoFocus(false)
+  frame.searchBox:SetFontObject("GameFontHighlightSmall")
+  frame.searchBox:SetTextInsets(8, 8, 0, 0)
+  if frame.searchBox.SetBackdrop then
+    frame.searchBox:SetBackdrop({
+      bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
       edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
       tile = true,
-      tileSize = 16,
+      tileSize = 8,
       edgeSize = 12,
-      insets = { left = 3, right = 3, top = 3, bottom = 3 },
+      insets = { left = 2, right = 2, top = 2, bottom = 2 },
     })
-    filterPanel:SetBackdropColor(THEME.panel[1], THEME.panel[2], THEME.panel[3], THEME.panel[4])
-    filterPanel:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 0.8)
+    frame.searchBox:SetBackdropColor(0.05, 0.06, 0.08, 0.9)
+    frame.searchBox:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], 0.85)
   end
 
-  local filtersTitle = filterPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  filtersTitle:SetPoint("TOPLEFT", filterPanel, "TOPLEFT", 10, -10)
-  filtersTitle:SetText("Filters")
+  -- BACKGROUND draws under the EditBox (3.3.x EditBox has no GetFrameLevel / SetFrameLevel).
+  frame.searchPlaceholder = frame:CreateFontString(nil, "BACKGROUND", "GameFontHighlightSmall")
+  frame.searchPlaceholder:SetPoint("LEFT", frame.searchBox, "LEFT", 8, 0)
+  frame.searchPlaceholder:SetText("Search Player by Name")
+  -- Lighter than THEME.muted@low alpha so it stays readable on the near-black EditBox backdrop (3.3.5).
+  frame.searchPlaceholder:SetTextColor(0.58, 0.62, 0.72, 0.92)
 
-  frame.raidDropdown   = createDropdown("WowLogsRaidDropdown",   filterPanel, 12, -44,  170, "Raid")
-  frame.diffDropdown   = createDropdown("WowLogsDiffDropdown",   filterPanel, 12, -94,  170, "Difficulty")
-  frame.bossDropdown   = createDropdown("WowLogsBossDropdown",   filterPanel, 12, -144, 170, "Boss")
-  frame.classDropdown  = createDropdown("WowLogsClassDropdown",  filterPanel, 12, -194, 170, "Class")
-  frame.specDropdown   = createDropdown("WowLogsSpecDropdown",   filterPanel, 12, -244, 170, "Spec")
-  frame.roleDropdown   = createDropdown("WowLogsRoleDropdown",   filterPanel, 12, -294, 170, "Role")
-  frame.ladderDropdown = createDropdown("WowLogsLadderDropdown", filterPanel, 12, -344, 170, "Ladder")
+  local function updateSearchPlaceholder()
+    if not frame.searchBox or not frame.searchPlaceholder then return end
+    local empty = (strtrim(frame.searchBox:GetText() or "") == "")
+    local show = empty and not searchFocused
+    if show then
+      frame.searchPlaceholder:Show()
+    else
+      frame.searchPlaceholder:Hide()
+    end
+  end
 
-  local resetBtn = CreateFrame("Button", nil, filterPanel, "UIPanelButtonTemplate")
-  resetBtn:SetSize(170, 22)
-  resetBtn:SetPoint("BOTTOMLEFT", filterPanel, "BOTTOMLEFT", 12, 12)
-  resetBtn:SetText("Reset Filters")
-  resetBtn:SetScript("OnClick", function()
-    filters.raidId = "ALL"
-    filters.bossId = "ALL"
-    filters.bossVariant = "ALL"
-    filters.difficulty = "ALL"
-    filters.className = "ALL"
-    filters.spec = "ALL"
-    filters.role = "ALL"
-    filters.ladder = "ALL"
-    WowLogsUI.Refresh()
+  frame.searchBox:SetScript("OnTextChanged", function()
+    updateSearchPlaceholder()
+    refreshRows()
   end)
+  frame.searchBox:SetScript("OnEditFocusGained", function()
+    searchFocused = true
+    updateSearchPlaceholder()
+  end)
+  frame.searchBox:SetScript("OnEditFocusLost", function()
+    searchFocused = false
+    updateSearchPlaceholder()
+  end)
+  frame.searchBox:SetScript("OnEscapePressed", function(self)
+    self:ClearFocus()
+    searchFocused = false
+    updateSearchPlaceholder()
+  end)
+  updateSearchPlaceholder()
+
+  frame.leaderboardHeading = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  frame.leaderboardHeading:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -108)
+  frame.leaderboardHeading:SetWidth(640)
+  frame.leaderboardHeading:SetJustifyH("LEFT")
+  frame.leaderboardHeading:SetText("Points leaderboard")
+  frame.leaderboardHeading:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3], 1)
+
+  frame.perfSliceSummary = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  frame.perfSliceSummary:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -132)
+  frame.perfSliceSummary:SetWidth(640)
+  frame.perfSliceSummary:SetJustifyH("LEFT")
+  frame.perfSliceSummary:SetText("")
+  frame.perfSliceSummary:SetTextColor(THEME.accent[1], THEME.accent[2], THEME.accent[3], 1)
+  frame.perfSliceSummary:Hide()
 
   frame.tablePanel = CreateFrame("Frame", nil, frame)
-  frame.tablePanel:SetSize(684, 500)
-  frame.tablePanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 256, -88)
+  frame.tablePanel:SetSize(656, 358)
+  frame.tablePanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -172)
   if frame.tablePanel.SetBackdrop then
     frame.tablePanel:SetBackdrop({
       bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -896,7 +626,7 @@ local function ensureFrame()
   end
 
   frame.headerBar = CreateFrame("Frame", nil, frame.tablePanel)
-  frame.headerBar:SetSize(612, rowHeight)
+  frame.headerBar:SetSize(620, rowHeight)
   frame.headerBar:SetPoint("TOPLEFT", frame.tablePanel, "TOPLEFT", 10, -10)
   if frame.headerBar.SetBackdrop then
     frame.headerBar:SetBackdrop({
@@ -913,16 +643,11 @@ local function ensureFrame()
 
   frame.scroll = CreateFrame("ScrollFrame", "WowLogsRankScrollFrame", frame.tablePanel, "FauxScrollFrameTemplate")
   frame.scroll:SetPoint("TOPLEFT", frame.tablePanel, "TOPLEFT", 10, -38)
-  frame.scroll:SetPoint("BOTTOMRIGHT", frame.tablePanel, "BOTTOMRIGHT", -28, 14)
-
-  frame.totalText = frame.tablePanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  frame.totalText:SetPoint("BOTTOMLEFT", frame.tablePanel, "BOTTOMLEFT", 12, 8)
-  frame.totalText:SetText("0 rows")
-  frame.totalText:SetTextColor(THEME.muted[1], THEME.muted[2], THEME.muted[3], THEME.muted[4])
+  frame.scroll:SetPoint("BOTTOMRIGHT", frame.tablePanel, "BOTTOMRIGHT", -28, 8)
 
   for i = 1, visibleRows do
     local row = CreateFrame("Button", nil, frame.tablePanel)
-    row:SetSize(612, rowHeight)
+    row:SetSize(620, rowHeight)
     row:SetPoint("TOPLEFT", frame.tablePanel, "TOPLEFT", 10, -38 - ((i - 1) * rowHeight))
 
     row.bg = row:CreateTexture(nil, "BACKGROUND")
@@ -968,24 +693,6 @@ function WowLogsUI.Refresh()
   frame.status:SetText(WowLogsBridge.GetStatusText())
 
   initViewTabs()
-
-  if filters.view == "PERFORMANCE" then
-    frame.roleDropdown:Show()
-    frame.ladderDropdown:Show()
-    if frame.roleDropdown.label then frame.roleDropdown.label:Show() end
-    if frame.ladderDropdown.label then frame.ladderDropdown.label:Show() end
-    frame.bossDropdown:Show()
-    if frame.bossDropdown.label then frame.bossDropdown.label:Show() end
-  else
-    frame.roleDropdown:Hide()
-    frame.ladderDropdown:Hide()
-    if frame.roleDropdown.label then frame.roleDropdown.label:Hide() end
-    if frame.ladderDropdown.label then frame.ladderDropdown.label:Hide() end
-    frame.bossDropdown:Hide()
-    if frame.bossDropdown.label then frame.bossDropdown.label:Hide() end
-  end
-
-  refreshDropdowns()
   refreshRows()
 end
 
