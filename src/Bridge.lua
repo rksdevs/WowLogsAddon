@@ -1,7 +1,7 @@
 ﻿WowLogsBridge = {}
 
 function WowLogsBridge.RequestRefresh()
-  print("[WoW Logs] Use the Native Uploader (Browse rankings → Send to addon), or Update Rankings for a full export. After syncing, /reload loads RankingsPayload.lua from disk.")
+  print("[WoW Logs] Use the Native Uploader (Browse rankings then Send to addon), or Update Rankings for a full export. After syncing, /reload loads RankingsPayload.lua from disk.")
 end
 
 function WowLogsBridge.GetStatusText()
