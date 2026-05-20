@@ -3,7 +3,7 @@ WowLogsUI = {}
 local frame
 local rows = {}
 local headerCells = {}
-local visibleRows = 14
+local visibleRows = 13
 local rowHeight = 24
 
 local filters = {
@@ -79,6 +79,14 @@ local specIconByClassSpec = {
 
 local function getDB()
   return WowLogsDataStore.GetDb()
+end
+
+-- Shared percentile colour (defined in DataStore.lua, loaded first).
+local pctColor = WowLogsPctColor
+-- Returns a colour TABLE {r,g,b,1} for use with setCellText.
+local function pctColorT(pct)
+  local r, g, b = pctColor(pct or 0)
+  return { r, g, b, 1 }
 end
 
 local function formatDifficulty(value)
@@ -355,8 +363,10 @@ local function refreshRows()
 
         setCellText(row.roleCell, WowLogsDataStore.GetRole(entry) or "-", THEME.muted, "LEFT")
         setCellText(row.ladderCell, WowLogsDataStore.GetLadder(entry) or "-", THEME.muted, "LEFT")
-        setCellText(row.amountCell, string.format("%.1f", WowLogsDataStore.GetAmount(entry) or 0), THEME.text, "RIGHT")
-        setCellText(row.pctCell, string.format("%.1f", WowLogsDataStore.GetPercentile(entry) or 0), THEME.accent, "RIGHT")
+        local perf = WowLogsDataStore.GetAmount(entry) or 0
+        local pct  = WowLogsDataStore.GetPercentile(entry) or 0
+        setCellText(row.amountCell, string.format("%.1f", perf), THEME.text, "RIGHT")
+        setCellText(row.pctCell,    string.format("%.1f", pct),  pctColorT(pct), "RIGHT")
 
         if not isPremium then
           setCellText(row.trendCell, "DNA", THEME.muted, "RIGHT")
@@ -401,14 +411,15 @@ local function refreshRows()
           row.trendCell:ClearAllPoints()
           row.trendCell:SetPoint("LEFT", row, "LEFT", 490, 0)
           row.trendCell:SetWidth(52)
-          setCellText(row.diffCell, WowLogsDataStore.GetRole(entry) or "-", THEME.muted, "LEFT")
-          setCellText(row.pointsCell, string.format("%.2f", WowLogsDataStore.GetPoints(entry) or 0), THEME.accent, "RIGHT")
           local sp = WowLogsDataStore.GetV2SpecPct(entry) or 0
           local cp = WowLogsDataStore.GetV2ClassPct(entry) or 0
           local rp = WowLogsDataStore.GetV2RolePct(entry) or 0
-          setCellText(row.pctCell, string.format("%.1f%%", sp), THEME.accent, "RIGHT")
-          setCellText(row.amountCell, string.format("%.1f%%", cp), THEME.accent, "RIGHT")
-          setCellText(row.trendCell, string.format("%.1f%%", rp), THEME.accent, "RIGHT")
+          setCellText(row.diffCell,   WowLogsDataStore.GetRole(entry) or "-", THEME.muted, "LEFT")
+          -- Points score coloured by spec-% (same proxy the web uses when no raw perf-% is stored)
+          setCellText(row.pointsCell, string.format("%.2f", WowLogsDataStore.GetPoints(entry) or 0), pctColorT(sp), "RIGHT")
+          setCellText(row.pctCell,    string.format("%.1f%%", sp), pctColorT(sp), "RIGHT")
+          setCellText(row.amountCell, string.format("%.1f%%", cp), pctColorT(cp), "RIGHT")
+          setCellText(row.trendCell,  string.format("%.1f%%", rp), pctColorT(rp), "RIGHT")
         else
           row.playerCell:SetWidth(300)
           row.diffCell:ClearAllPoints()
@@ -494,7 +505,7 @@ local function ensureFrame()
   frame.status:SetTextColor(THEME.accent[1], THEME.accent[2], THEME.accent[3], 1)
 
   frame.pointsTab = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-  frame.pointsTab:SetSize(90, 22)
+  frame.pointsTab:SetSize(70, 22)
   frame.pointsTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -56)
   frame.pointsTab:SetText("Points")
   frame.pointsTab:SetScript("OnClick", function()
@@ -503,7 +514,7 @@ local function ensureFrame()
   end)
 
   frame.perfTab = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-  frame.perfTab:SetSize(110, 22)
+  frame.perfTab:SetSize(100, 22)
   frame.perfTab:SetPoint("LEFT", frame.pointsTab, "RIGHT", 6, 0)
   frame.perfTab:SetText("Performance")
   frame.perfTab:SetScript("OnClick", function()
@@ -512,16 +523,16 @@ local function ensureFrame()
   end)
 
   frame.reloadBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-  frame.reloadBtn:SetSize(80, 22)
-  frame.reloadBtn:SetPoint("LEFT", frame.perfTab, "RIGHT", 12, 0)
+  frame.reloadBtn:SetSize(72, 22)
+  frame.reloadBtn:SetPoint("LEFT", frame.perfTab, "RIGHT", 6, 0)
   frame.reloadBtn:SetText("Reload UI")
   frame.reloadBtn:SetScript("OnClick", function()
     ReloadUI()
   end)
 
   frame.guildExportBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-  frame.guildExportBtn:SetSize(96, 22)
-  frame.guildExportBtn:SetPoint("LEFT", frame.reloadBtn, "RIGHT", 8, 0)
+  frame.guildExportBtn:SetSize(86, 22)
+  frame.guildExportBtn:SetPoint("LEFT", frame.reloadBtn, "RIGHT", 6, 0)
   frame.guildExportBtn:SetText("Export Guild")
   frame.guildExportBtn:SetScript("OnClick", function()
     if WowLogsGuildExport and WowLogsGuildExport.ShowDialog then
@@ -531,8 +542,47 @@ local function ensureFrame()
     end
   end)
 
+  frame.raidPartyExportBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+  frame.raidPartyExportBtn:SetSize(96, 22)
+  frame.raidPartyExportBtn:SetPoint("LEFT", frame.guildExportBtn, "RIGHT", 6, 0)
+  frame.raidPartyExportBtn:SetText("Export Raid/Party")
+  frame.raidPartyExportBtn:SetScript("OnClick", function()
+    if WowLogsRaidPartyExport and WowLogsRaidPartyExport.ShowDialog then
+      WowLogsRaidPartyExport.ShowDialog()
+    else
+      print("|cffff8800[WoW Logs]|r Raid/Party export module not loaded.")
+    end
+  end)
+
+  frame.raidPartyRankBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+  frame.raidPartyRankBtn:SetSize(108, 22)
+  frame.raidPartyRankBtn:SetPoint("LEFT", frame.raidPartyExportBtn, "RIGHT", 6, 0)
+  frame.raidPartyRankBtn:SetText("Raid/Party Rankings")
+  frame.raidPartyRankBtn:SetScript("OnClick", function()
+    if WowLogsRaidPartyUI and WowLogsRaidPartyUI.SetMode then
+      WowLogsRaidPartyUI.SetMode("raidParty")
+    end
+    if WowLogsRaidPartyUI and WowLogsRaidPartyUI.Toggle then
+      WowLogsRaidPartyUI.Toggle()
+    else
+      print("|cffff8800[WoW Logs]|r Raid/Party rankings UI not loaded.")
+    end
+  end)
+
+  frame.guildRankBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+  frame.guildRankBtn:SetSize(96, 22)
+  frame.guildRankBtn:SetPoint("LEFT", frame.raidPartyRankBtn, "RIGHT", 6, 0)
+  frame.guildRankBtn:SetText("Guild Rankings")
+  frame.guildRankBtn:SetScript("OnClick", function()
+    if WowLogsGuildRankUI and WowLogsGuildRankUI.Toggle then
+      WowLogsGuildRankUI.Toggle()
+    else
+      print("|cffff8800[WoW Logs]|r Guild rankings UI not loaded.")
+    end
+  end)
+
   frame.modeText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  frame.modeText:SetPoint("LEFT", frame.guildExportBtn, "RIGHT", 12, 0)
+  frame.modeText:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -82)
   frame.modeText:SetText("Use the Native Uploader to refresh data.")
   frame.modeText:SetTextColor(THEME.muted[1], THEME.muted[2], THEME.muted[3], THEME.muted[4])
 
@@ -540,7 +590,7 @@ local function ensureFrame()
 
   frame.searchBox = CreateFrame("EditBox", "WowLogsRankSearchBox", frame)
   frame.searchBox:SetSize(640, 22)
-  frame.searchBox:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -82)
+  frame.searchBox:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -108)
   frame.searchBox:SetAutoFocus(false)
   frame.searchBox:SetFontObject("GameFontHighlightSmall")
   frame.searchBox:SetTextInsets(8, 8, 0, 0)
@@ -595,14 +645,14 @@ local function ensureFrame()
   updateSearchPlaceholder()
 
   frame.leaderboardHeading = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  frame.leaderboardHeading:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -108)
+  frame.leaderboardHeading:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -134)
   frame.leaderboardHeading:SetWidth(640)
   frame.leaderboardHeading:SetJustifyH("LEFT")
   frame.leaderboardHeading:SetText("Points leaderboard")
   frame.leaderboardHeading:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3], 1)
 
   frame.perfSliceSummary = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  frame.perfSliceSummary:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -132)
+  frame.perfSliceSummary:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -158)
   frame.perfSliceSummary:SetWidth(640)
   frame.perfSliceSummary:SetJustifyH("LEFT")
   frame.perfSliceSummary:SetText("")
@@ -610,8 +660,8 @@ local function ensureFrame()
   frame.perfSliceSummary:Hide()
 
   frame.tablePanel = CreateFrame("Frame", nil, frame)
-  frame.tablePanel:SetSize(656, 358)
-  frame.tablePanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -172)
+  frame.tablePanel:SetSize(656, 360)
+  frame.tablePanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -183)
   if frame.tablePanel.SetBackdrop then
     frame.tablePanel:SetBackdrop({
       bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",

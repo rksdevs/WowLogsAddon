@@ -30,6 +30,24 @@ local function handleCommand(msg)
     return
   end
 
+  if msg == "exportraid" or msg == "exportparty" or msg == "exportroster" or msg == "raidpartyexport" then
+    if WowLogsRaidPartyExport and WowLogsRaidPartyExport.ShowDialog then
+      WowLogsRaidPartyExport.ShowDialog()
+    else
+      print("[WoW Logs] Raid/Party export module not loaded.")
+    end
+    return
+  end
+
+  if msg == "raidparty" or msg == "raidrankings" or msg == "partyrankings" then
+    if WowLogsRaidPartyUI and WowLogsRaidPartyUI.Toggle then
+      WowLogsRaidPartyUI.Toggle()
+    else
+      print("[WoW Logs] Raid/Party rankings UI not loaded.")
+    end
+    return
+  end
+
   if msg == "minimap hide" then
     WowLogsAddonDB = WowLogsAddonDB or {}
     WowLogsAddonDB.meta = WowLogsAddonDB.meta or {}
@@ -53,7 +71,7 @@ local function handleCommand(msg)
   if msg:find("^tooltip") then
     local targetName = msg:match("^tooltip%s+(.+)")
     if targetName then
-      local realm = GetRealmName()
+      local realm = WowLogsResolveRealmForLookup(GetRealmName())
       local ranking = WowLogsDataStore.GetPlayerRanking(targetName, realm)
       GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
       WowLogsTooltip.ShowForPlayer(ranking, targetName)

@@ -2,15 +2,17 @@
 ## Title: WoW Logs Addon
 ## Notes: In-game ranking panel + tooltip rank display for WoW Logs
 ## Author: Rksdevs (Inno)
-## Version: 1.2.6
+## Version: 1.2.8
 ## SavedVariables: WowLogsAddonDB
 
 src\RankingsPayload.lua
 src\Config.lua
 src\GuildExport.lua
+src\RaidPartyExport.lua
 src\DataStore.lua
 src\Bridge.lua
 src\Tooltip.lua
 src\UI.lua
+src\RaidPartyUI.lua
 src\MinimapButton.lua
 src\Core.lua

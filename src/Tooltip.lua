@@ -39,7 +39,12 @@ function WowLogsTooltip.ShowForPlayer(r, playerName)
 
   if not r then
     GameTooltip:AddLine("Ranking data not available", 0.7, 0.7, 0.7)
-    GameTooltip:AddLine("(Top 20 only)", 0.5, 0.5, 0.5)
+    GameTooltip:AddLine("(Not in synced leaderboard slice)", 0.5, 0.5, 0.5)
+    local rk = WowLogsDataStore.GetRankings()
+    local sum = rk and rk.pointsSliceSummary
+    if sum and sum ~= "" then
+      GameTooltip:AddLine(sum, 0.45, 0.55, 0.65)
+    end
     GameTooltip:Show()
     return
   end
@@ -90,6 +95,7 @@ local function onTooltipSetUnit()
   if not realm or realm == "" then
     realm = GetRealmName()
   end
+  realm = WowLogsResolveRealmForLookup(realm)
 
   local ranking = WowLogsDataStore.GetPlayerRanking(name, realm)
   WowLogsTooltip.ShowForPlayer(ranking, name)

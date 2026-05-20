@@ -2,6 +2,20 @@ local function now()
   return time()
 end
 
+--- Percentile colour tiers — mirrors wow-logs.co.in / Native Uploader (leaderboardVisuals.ts).
+--- Returns R, G, B (0-1 range) suitable for FontString:SetTextColor.
+--- Exposed as a global so UI.lua and RaidPartyUI.lua can share one definition.
+function WowLogsPctColor(pct)
+  pct = pct or 0
+  if pct >= 100 then return 0.898, 0.800, 0.502 end  -- #e5cc80  gold
+  if pct >= 99  then return 0.886, 0.408, 0.659 end  -- #e268a8  pink
+  if pct >= 95  then return 1.000, 0.502, 0.000 end  -- #ff8000  orange
+  if pct >= 75  then return 0.639, 0.208, 0.933 end  -- #a335ee  purple
+  if pct >= 50  then return 0.000, 0.439, 1.000 end  -- #0070ff  blue
+  if pct >= 30  then return 0.118, 1.000, 0.000 end  -- #1eff00  green
+  return 0.502, 0.502, 0.502                          -- #808080  grey
+end
+
 local function ensureDb()
   WowLogsAddonDB = WowLogsAddonDB or {}
   WowLogsAddonDB.meta = WowLogsAddonDB.meta or {}
@@ -259,6 +273,24 @@ end
 
 local runtimePlayerCache = nil
 
+local function parsePointsColumn(pointsRaw)
+  local allStarPoints = 0
+  local specPoints = {}
+  if string.find(pointsRaw, "|", 1, true) or string.find(pointsRaw, ":", 1, true) then
+    for entry in string.gmatch(pointsRaw, "[^|]+") do
+      local spec, pts = string.match(entry, "^([^:]+):(.+)$")
+      if spec and pts then
+        local p = tonumber(pts) or 0
+        table.insert(specPoints, { spec = spec, points = p })
+        if p > allStarPoints then allStarPoints = p end
+      end
+    end
+  else
+    allStarPoints = tonumber(pointsRaw) or 0
+  end
+  return allStarPoints, specPoints
+end
+
 function WowLogsDataStore.GetPlayerRanking(name, realm)
   ensureDb()
   local lookupKey = WowLogsNormalizeKey(name, realm)
@@ -266,6 +298,7 @@ function WowLogsDataStore.GetPlayerRanking(name, realm)
   -- Build/Refresh cache if missing or data updated
   local rk = getRankings()
   local lastUpdate = rk and rk.updatedAt or 0
+  local payloadRealm = WowLogsResolveRealmForLookup(rk and rk.realm or "")
   
   if not runtimePlayerCache or runtimePlayerCache._updatedAt ~= lastUpdate then
     runtimePlayerCache = { _updatedAt = lastUpdate }
@@ -280,7 +313,7 @@ function WowLogsDataStore.GetPlayerRanking(name, realm)
         if type(rowStr) == "string" then
           -- V2: key,playerName,classID,specID,roleID,points,specPct,classPct,rolePct,categoryRank,isFollowed
           local _, n, c, s, ro, p, _, _, _, cr, _ = strsplit(",", rowStr)
-          local pKey = WowLogsNormalizeKey(n, realm)
+          local pKey = WowLogsNormalizeKey(n, payloadRealm)
           local pts = tonumber(p) or 0
           local specStr = dict[tonumber(s)] or s
           local roleStr = dict[tonumber(ro)] or ro
@@ -318,7 +351,7 @@ function WowLogsDataStore.GetPlayerRanking(name, realm)
       if type(rowStr) == "string" then
         -- key,playerName,classID,specID,raidId,raidNameID,bossId,bossNameID,difficultyID,points,percentile,categoryRank,isFollowed
         local rowKey, n, c, s, ri, rn, bi, bn, d, p, pc, cr, f = strsplit(",", rowStr)
-        local pKey = WowLogsNormalizeKey(n, realm)
+        local pKey = WowLogsNormalizeKey(n, payloadRealm)
         local pts = tonumber(p) or 0
         local specStr = dict[tonumber(s)] or s
         local diffStr = dict[tonumber(d)] or d
@@ -383,4 +416,91 @@ end
 
 function WowLogsDataStore.Now()
   return now()
+end
+
+--- Raid/party character rankings slice (guild-rankings-style), written by Native Uploader.
+function WowLogsDataStore.GetRaidPartyMeta()
+  local rk = getRankings()
+  return rk and rk.raidPartyMeta
+end
+
+function WowLogsDataStore.GetRaidPartyBosses()
+  local rk = getRankings()
+  return (rk and rk.raidPartyBosses) or {}
+end
+
+function WowLogsDataStore.HasRaidPartyData()
+  local rk = getRankings()
+  local rows = rk and rk.raidPartyRows
+  return rows and #rows > 0
+end
+
+local function parseCharacterRankingsCSVRows(rowStrs, bosses)
+  local out = {}
+  if not rowStrs or #rowStrs == 0 then
+    return out
+  end
+  for i = 1, #rowStrs do
+    local rowStr = rowStrs[i]
+    if type(rowStr) == "string" then
+      local parts = { strsplit(",", rowStr) }
+      local name = parts[1]
+      local className = parts[2]
+      local avgPct = tonumber(parts[3]) or 0
+      local allStarPoints, specPoints = parsePointsColumn(parts[4] or "")
+      local bossPct = {}
+      for b = 1, #bosses do
+        local v = parts[4 + b]
+        if v and v ~= "" then
+          bossPct[b] = tonumber(v)
+        end
+      end
+      table.insert(out, {
+        playerName = name,
+        class = className,
+        avgPercentile = avgPct,
+        allStarPoints = allStarPoints,
+        specPoints = specPoints,
+        bossPercentiles = bossPct,
+      })
+    end
+  end
+  return out
+end
+
+function WowLogsDataStore.GetRaidPartyRows()
+  local rk = getRankings()
+  local rowStrs = rk and rk.raidPartyRows
+  local bosses = WowLogsDataStore.GetRaidPartyBosses()
+  if not rowStrs or #rowStrs == 0 then
+    return {}, bosses, WowLogsDataStore.GetRaidPartyMeta()
+  end
+  return parseCharacterRankingsCSVRows(rowStrs, bosses), bosses, WowLogsDataStore.GetRaidPartyMeta()
+end
+
+--- Guild character rankings slice (same CSV shape as raid/party), written by Native Uploader.
+function WowLogsDataStore.GetGuildRankMeta()
+  local rk = getRankings()
+  return rk and rk.guildRankMeta
+end
+
+function WowLogsDataStore.GetGuildRankBosses()
+  local rk = getRankings()
+  return (rk and rk.guildRankBosses) or {}
+end
+
+function WowLogsDataStore.HasGuildRankData()
+  local rk = getRankings()
+  local rows = rk and rk.guildRankRows
+  return rows and #rows > 0
+end
+
+function WowLogsDataStore.GetGuildRankRows()
+  local rk = getRankings()
+  local rowStrs = rk and rk.guildRankRows
+  local bosses = WowLogsDataStore.GetGuildRankBosses()
+  if not rowStrs or #rowStrs == 0 then
+    return {}, bosses, WowLogsDataStore.GetGuildRankMeta()
+  end
+  return parseCharacterRankingsCSVRows(rowStrs, bosses), bosses, WowLogsDataStore.GetGuildRankMeta()
 end

@@ -137,6 +137,9 @@ function WowLogsGuildExport.BuildJson()
   return encodeValue(payload), nil
 end
 
+-- Shared JSON encoder for raid/party export and other copy/paste flows.
+WowLogsJson = { encode = encodeValue }
+
 -- Modal panel with scrollable edit box for Ctrl+A / Ctrl+C
 local exportFrame
 
