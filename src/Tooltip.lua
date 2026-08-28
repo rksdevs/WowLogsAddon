@@ -29,15 +29,16 @@ local diffNames = {
 }
 
 function WowLogsTooltip.ShowForPlayer(r, playerName)
-  local header = "WoW Logs Ranking"
-  if playerName then
-    header = header .. " - " .. playerName
-  end
-
-  GameTooltip:AddLine(header, 1, 0.82, 0)
-  GameTooltip:AddLine("-----------------------------", 0.4, 0.4, 0.4)
-
   if not r then
+    if WowLogsDataStore.GetHideUnrankedTooltip and WowLogsDataStore.GetHideUnrankedTooltip() then
+      return
+    end
+    local header = "WoW Logs Ranking"
+    if playerName then
+      header = header .. " - " .. playerName
+    end
+    GameTooltip:AddLine(header, 1, 0.82, 0)
+    GameTooltip:AddLine("-----------------------------", 0.4, 0.4, 0.4)
     GameTooltip:AddLine("Ranking data not available", 0.7, 0.7, 0.7)
     GameTooltip:AddLine("(Not in synced leaderboard slice)", 0.5, 0.5, 0.5)
     local rk = WowLogsDataStore.GetRankings()
@@ -48,6 +49,14 @@ function WowLogsTooltip.ShowForPlayer(r, playerName)
     GameTooltip:Show()
     return
   end
+
+  local header = "WoW Logs Ranking"
+  if playerName then
+    header = header .. " - " .. playerName
+  end
+
+  GameTooltip:AddLine(header, 1, 0.82, 0)
+  GameTooltip:AddLine("-----------------------------", 0.4, 0.4, 0.4)
 
 
   if r.rankings and #r.rankings > 0 then

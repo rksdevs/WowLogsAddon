@@ -28,6 +28,9 @@ local function ensureDb()
   if not WowLogsAddonDB.meta.version then
     WowLogsAddonDB.meta.version = WowLogsConfig.SCHEMA_VERSION
   end
+  if WowLogsAddonDB.meta.hideUnrankedTooltip == nil then
+    WowLogsAddonDB.meta.hideUnrankedTooltip = true
+  end
 end
 
 --- Native Uploader writes full rankings to WowLogsRankingsPayload (RankingsPayload.lua under the addon folder).
@@ -97,6 +100,17 @@ end
 function WowLogsDataStore.GetDb()
   ensureDb()
   return WowLogsAddonDB
+end
+
+function WowLogsDataStore.GetHideUnrankedTooltip()
+  ensureDb()
+  return WowLogsAddonDB.meta.hideUnrankedTooltip ~= false
+end
+
+function WowLogsDataStore.SetHideUnrankedTooltip(hidden)
+  ensureDb()
+  WowLogsAddonDB.meta.hideUnrankedTooltip = hidden and true or false
+  return WowLogsAddonDB.meta.hideUnrankedTooltip
 end
 
 function WowLogsDataStore.GetRankings()

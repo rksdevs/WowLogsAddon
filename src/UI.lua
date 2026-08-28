@@ -586,6 +586,23 @@ local function ensureFrame()
   frame.modeText:SetText("Use the Native Uploader to refresh data.")
   frame.modeText:SetTextColor(THEME.muted[1], THEME.muted[2], THEME.muted[3], THEME.muted[4])
 
+  frame.hideUnrankedCheck = CreateFrame("CheckButton", "WowLogsHideUnrankedTooltipCheck", frame, "UICheckButtonTemplate")
+  frame.hideUnrankedCheck:SetSize(22, 22)
+  frame.hideUnrankedCheck:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -18, -78)
+  local hideUnrankedLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  hideUnrankedLabel:SetPoint("RIGHT", frame.hideUnrankedCheck, "LEFT", -4, 0)
+  hideUnrankedLabel:SetText("Hide unranked tooltip")
+  hideUnrankedLabel:SetTextColor(THEME.muted[1], THEME.muted[2], THEME.muted[3], 1)
+  frame.hideUnrankedCheck:SetScript("OnClick", function(self)
+    local hidden = self:GetChecked() and true or false
+    WowLogsDataStore.SetHideUnrankedTooltip(hidden)
+    if hidden then
+      print("|cffff8800[WoW Logs]|r Unranked player tooltips hidden.")
+    else
+      print("|cffff8800[WoW Logs]|r Unranked player tooltips shown.")
+    end
+  end)
+
   local searchFocused = false
 
   frame.searchBox = CreateFrame("EditBox", "WowLogsRankSearchBox", frame)
@@ -741,6 +758,9 @@ end
 function WowLogsUI.Refresh()
   ensureFrame()
   frame.status:SetText(WowLogsBridge.GetStatusText())
+  if frame.hideUnrankedCheck then
+    frame.hideUnrankedCheck:SetChecked(WowLogsDataStore.GetHideUnrankedTooltip())
+  end
 
   initViewTabs()
   refreshRows()

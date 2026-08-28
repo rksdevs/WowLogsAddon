@@ -68,6 +68,18 @@ local function handleCommand(msg)
     return
   end
 
+  if msg == "tooltip hide" then
+    WowLogsDataStore.SetHideUnrankedTooltip(true)
+    print("[WoW Logs] Unranked player tooltips hidden. /wla tooltip show to restore.")
+    return
+  end
+
+  if msg == "tooltip show" then
+    WowLogsDataStore.SetHideUnrankedTooltip(false)
+    print("[WoW Logs] Unranked player tooltips shown.")
+    return
+  end
+
   if msg:find("^tooltip") then
     local targetName = msg:match("^tooltip%s+(.+)")
     if targetName then

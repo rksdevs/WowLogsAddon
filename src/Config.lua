@@ -16,6 +16,8 @@ local REALM_LOOKUP_ALIASES = {
   ["x1"] = "x1",
   ["x4"] = "x4",
   ["x100"] = "x100",
+  -- Wow Patagonia: GetRealmName() is Andes; rankings payload still labels Patagonia
+  ["andes"] = "patagonia",
 }
 
 function WowLogsResolveRealmForLookup(realm)
